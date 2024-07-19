@@ -5,7 +5,7 @@ Deletion-resilient hypermedia pagination
 
 import csv
 import math
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 
 class Server:
@@ -39,7 +39,7 @@ class Server:
             }
         return self.__indexed_dataset
 
-    def get_hyper_index(self, index: Optional[int] = None, page_size: int = 10) -> Dict:
+    def get_hyper_index(self, index: int = None, page_size: int = 10) -> Dict:
         """
         Get paginated data with hypermedia information, resilient to deletions.
 
@@ -50,24 +50,26 @@ class Server:
         Returns:
             Dict[str, Any]: A dictionary containing hypermedia information.
         """
-        assert index is not None and 0 <= index < len(self.indexed_dataset())
-
         dataset = self.indexed_dataset()
+        assert 0 <= index < len(dataset)
+
+        response = {}
         data = []
-        current_index = index
-        items_retrieved = 0
+        response['index'] = index
 
-        while items_retrieved < page_size and current_index < len(dataset):
-            if current_index in dataset:
-                data.append(dataset[current_index])
-                items_retrieved += 1
-            current_index += 1
+        for i in range(page_size):
+            while True:
+                current_index = dataset.get(index)
+                index += 1
+                if current_index is not None:
+                    break
+            data.append(current_index)
 
-        next_index = current_index if current_index < len(dataset) else None
+        response['data'] = data
+        response['page_size'] = len(data)
+        if dataset.get(index):
+            response['next_index'] = index
+        else:
+            response['next_index'] = None
 
-        return {
-            "index": index,
-            "next_index": next_index,
-            "page_size": page_size,
-            "data": data
-        }
+        return response
